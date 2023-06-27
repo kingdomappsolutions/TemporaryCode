@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <!-- Bootstrap CSS link (needed for input styling) -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css"/>
+
+        <!-- Bulma CSS link (styling of most components) -->
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css"/>
+
+        <!-- Bulma tooltip import (used for yellow tooltips on hover) -->
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@creativebulma/bulma-tooltip@1.2.0/dist/bulma-tooltip.min.css">
+
+        <!-- Bulma calendar (used for custom calendar look) -->
+        <script src="https://cdn.jsdelivr.net/npm/bulma-calendar@6.1.19/dist/js/bulma-calendar.min.js"></script>
+        <link href="https://cdn.jsdelivr.net/npm/bulma-calendar@6.1.19/dist/css/bulma-calendar.min.css" rel="stylesheet">
+
+        <!-- Bulma page loader (used for page loading effect) -->
+        <link href="https://cdn.jsdelivr.net/npm/bulma-pageloader@0.3.0/dist/css/bulma-pageloader.min.css" rel="stylesheet">
+
+        <!-- Bulma JS (used for custom alert) -->
+        <script src="https://cdn.jsdelivr.net/npm/@vizuaalog/bulmajs@0.12.2/dist/bulma.min.js"></script>
+
+        <!-- jQuery script import (used for jQuery JavaScript syntax) -->
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+        <style>
+            /* Text */
+            h1 {
+                color: white !important;
+                text-align: center;
+                margin-bottom: 20px !important;
+            }
+
+            h2 {
+                color: red !important;
+                text-align: center;
+                margin-top: 0px !important;
+            }
+            
+            /* Buttons */
+            button {
+                margin-right: 20px;
+                margin-left: 20px;
+            }
+
+            .buttons {
+                justify-content: center;
+            }
+
+            .is-success-dark {
+                background-color: hsl(141, 53%, 31%);
+                border-color: hsl(141, 53%, 31%);
+                color: white;
+            }
+            
+            .is-success-dark:hover {
+                background-color: hsl(141, 53%, 28%);
+                border-color: hsl(141, 53%, 28%);
+                color: white;
+            }
+            
+            .is-danger-dark {
+                background-color: hsl(348, 86%, 43%);
+                border-color: hsl(348, 86%, 43%);
+                color: white;
+            }
+            
+            .is-danger-dark:hover {
+                background-color: hsl(348, 86%, 41%);
+                border-color: hsl(348, 86%, 41%);
+                color: white;
+            }
+            
+            /* Body styling */
+            section {
+                padding: 20px !important;
+            }
+
+            .outside-div {
+                padding: 10px; 
+                border-radius: 4px; 
+                background: linear-gradient(135deg, #09203f, #537895); 
+                float: left;
+            }
+
+            .inside-div {
+                padding: 40px; 
+                border-radius: 4px; 
+                background: linear-gradient(135deg, #121212, #09203f); 
+                min-width: 100%;
+            }
+
+            /* Input sizes */
+            .form-control {
+                height: 40px !important;
+                /* width: 300px !important; */
+            }
+            
+            select {
+                font-size: 14px !important;
+            }
+
+            .datetimepicker-dummy
+            .datetimepicker-dummy-wrapper {
+                height: 40px !important;
+            }
+            
+            .datetimepicker-dummy
+            .datetimepicker-dummy-wrapper
+            .datetimepicker-dummy-input {
+                font-size: 14px !important;
+            }
+        </style>
+        <script>
+            // Global dropdown variables
+            var locationDropdownValue = ""
+            var typeDropdownValue = ""
+            var companyDropdownValue = ""
+            var attacherDropdownValue = ""
+            var attacherCount = 0
+
+            // Project name
+            var projectName
+
+            // Function to build form dynamically
+            const buildForm = () => {
+                // Hide page until after form is loaded
+                $("initialPage").show()
+                $("#form").hide()
+
+                // Show loading page animation right as page is loaded
+                setTimeout(() => {
+                    $("#pageLoader").addClass("is-active")
+                })
+
+                // Show page after loading time
+                setTimeout(() => {
+                    $("#initialPage").hide()
+                    $("#form").show()
+                    $("#pageLoader").removeClass("is-active")
+                }, 4500)
+
+                // URL parameters
+                const urlParams = new URLSearchParams(window.location.search)
+                const dbid = urlParams.get("dbid")
+                const fids = urlParams.get("fids")
+                let rid = urlParams.get("rid")
+                const embed = urlParams.get("embed")
+                // INSERT OWN APP TOKEN
+                // const appToken = ""
+                const realm = window.location.hostname.substring(
+                    0,
+                    window.location.hostname.indexOf(".")
+                )
+                const headers = new Map()
+
+                // Alert to missing parameters and go back to previous page
+                if (!dbid || !fids) {
+                    alert(
+                        `Missing either the DBID or FIDs parameter.\nYou'll now be redirected.`
+                    );
+                    errRdr();
+                }
+
+                // Begin Temp Auth
+                getTempAuth(realm, dbid, appToken).then((header) => {
+                    headers.set(dbid, header)
+                    query()
+                })
+
+                // Query the fields from Quickbase
+                const query = () => {
+                    const fields = fids.split(".")
+                    const params = {
+                        from: dbid,
+                        where: `{3.EX.${rid}}`,
+                        select: fields,
+                    }
+                    $.ajax({
+                        url: `https://api.quickbase.com/v1/records/query`,
+                        method: "POST",
+                        headers: headers.get(dbid),
+                        dataType: "json",
+                        contentType: "application/json; charset=utf-8",
+                        data: JSON.stringify(params),
+                        success: (response) => {
+                            // Generate Form Dynamically
+                            $(document).ready(async () => {
+                                // Form tag elements
+                                let inputForm = $("#inputForm")
+                                let inputFormColumn2 = $("#inputFormColumn2")
+                                let inputFormColumn3 = $("#inputFormColumn3")
+                                let attacherOptionsTag = $("#attacherOptionsTag")
+                                let companyOptionsTag = $("#companyOptionsTag")
+                                let typeOptionsTag = $("#typeOptionsTag")
+                                let locationOptionsTag = $("#locationOptionsTag")
+                                var sliceCount = 0
+
+                                // Dropdown initial values
+                                var attacher, company, attachmentType, location
+
+                                // Loop through query results
+                                for (let i = 0; i < response.fields.length; i++) {
+                                    const fid = response.fields[i].id
+                                    const fLabel = response.fields[i].label
+                                    const fType = response.fields[i].type
+                                    let type,
+                                        value = "",
+                                        focus
+
+                                    if (embed) {
+                                    // Embed within record to add child records
+                                    document.getElementById("test").textContent = "Add Child"
+                                        $(".helpText").hide()
+                                    } else if (!rid) {
+                                        // Add a new record
+                                        rid = 0
+                                        document.getElementById("test").textContent = "Add Record"
+                                        $("#instructions").show()
+                                    } else {
+                                        if (i === 0) {
+                                            // Get project name for title
+                                            projectName = response.data[0][fid].value
+                                            document.getElementById("test").textContent = `Edit Project: ${projectName}`
+                                        }
+                                    }
+
+                                    // Assign values based on type
+                                    if (response.data[0]) {
+                                        if (fType === "timestamp") {
+                                            value = `value="${response.data[0][fid].value.slice(0, -1)}"` // Removes the Z from the end of the returned timestamp
+                                        } else if (fType === "checkbox" && response.data[0][fid].value === true) {
+                                            value = `value="${response.data[0][fid].value}" checked` // Marks checkbox as true if necessary
+                                        } else if (fType === "text-multiple-choice") {
+                                            if (i === 9) {
+                                                attacher = response.data[0][fid].value
+                                            } else if (i === 10) {
+                                                company = response.data[0][fid].value
+                                            } else if (i === 11) {
+                                                attachmentType = response.data[0][fid].value
+                                            } else if (i === 12) {  
+                                                location = response.data[0][fid].value
+                                            }
+                                            // console.log(response.data[0][fid].value)
+                                        } else {
+                                            value = `value="${response.data[0][fid].value}"`
+                                        }
+                                    }
+
+                                    // Dynamically determine the type of input field
+                                    switch (fType) {
+                                        case "date":
+                                            type = "date"
+                                            break
+                                        case "timestamp":
+                                            type = "datetime-local"
+                                            break
+                                        case "timeofday":
+                                            type = "time"
+                                            break
+                                        case "checkbox":
+                                            type = "checkbox"
+                                            break
+                                        case "phone":
+                                            type = "tel"
+                                            break
+                                        case "numeric":
+                                            type = "number"
+                                            break
+                                        case "email":
+                                            type = "email"
+                                            break
+                                        case "text-multiple-choice":
+                                            type = "tmc"
+                                            break
+                                        default:
+                                            type = "text"
+                                    }
+
+                                    // Fetch XML data from API call
+                                    var url = "https://" + realm + ".quickbase.com/db/" + dbid + "?a=API_GetSchema&apptoken=" + appToken + "&clist=" + fid
+                                    await fetch(url)
+                                        .then((response) =>
+                                            response.text(),
+                                        )
+                                        .then((xmlText) => {
+                                            // Parse the XML response
+                                            var parser = new DOMParser()
+                                            var xmlDoc = parser.parseFromString(xmlText, "text/xml")
+                                            var property, options, xmlFieldCount
+                                            var fields = {}
+                                            var labels = {}
+                                            
+                                            // Get the field properties and options
+                                            choices = xmlDoc.getElementsByTagName("choice")
+                                            xmlFieldCount = xmlDoc.getElementsByTagName("field").length
+  
+                                            // Loop through fields to get attributes
+                                            for (var i = 0; i < xmlFieldCount; i++) {
+                                                fields[i] = xmlDoc.getElementsByTagName("field")[i].attributes
+                                            }
+
+                                            // Format the options into a JSON object
+                                            var optionsObj = {}
+                                            var attacherOptions = {}
+                                            var typeOptions = {}
+                                            var companyOptions = {}
+                                            var locationOptions = {}
+
+                                            // Get all possible dropdown options from all fields
+                                            for (var i = 0; i < choices.length; i++) {
+                                                option = choices[i].textContent
+                                                optionsObj[i] = option
+                                            }
+                                            
+                                            // Exclude states from options and save as array
+                                            var optionsArray = Object.values(optionsObj)    
+                                            for (var i = optionsArray.length; i >= 0; --i) {
+                                                if (optionsArray[i] === "Alabama" || optionsArray[i] === "Alaska" || optionsArray[i] === "Arizona" || optionsArray[i] === "Arkansas" || optionsArray[i] === "California" || optionsArray[i] === "Colorado" || optionsArray[i] === "Connecticut" || optionsArray[i] === "Delaware" || optionsArray[i] === "District of Columbia" || optionsArray[i] === "Florida" || optionsArray[i] === "Georgia" || optionsArray[i] === "Hawaii" || optionsArray[i] === "Idaho" || optionsArray[i] === "Illinois" || optionsArray[i] === "Indiana" || optionsArray[i] === "Iowa" || optionsArray[i] === "Kansas" || optionsArray[i] === "Kentucky" || optionsArray[i] === "Louisiana" || optionsArray[i] === "Maine" || optionsArray[i] === "Maryland" || optionsArray[i] === "Massachusetts" || optionsArray[i] === "Michigan" || optionsArray[i] === "Minnesota" || optionsArray[i] === "Mississippi" || optionsArray[i] === "Missouri" || optionsObj[i] === "Montana" || optionsObj[i] === "Nebraska" || optionsObj[i] === "Nevada" || optionsObj[i] === "New Hampshire" || optionsArray[i] === "New Jersey" || optionsArray[i] === "New Mexico" || optionsArray[i] === "New York" || optionsArray[i] === "North Carolina" || optionsArray[i] === "North Dakota" || optionsArray[i] === "Ohio" || optionsArray[i] === "Oklahoma" || optionsArray[i] === "Oregon" || optionsArray[i] === "Pennsylvania" || optionsArray[i] === "Rhode Island" || optionsArray[i] === "South Carolina" || optionsArray[i] === "South Dakota" || optionsArray[i] === "Tennessee" || optionsArray[i] === "Texas" || optionsArray[i] === "Utah" || optionsArray[i] === "Vermont" || optionsArray[i] === "Virginia" || optionsArray[i] === "Washington" || optionsArray[i] === "West Virginia" || optionsArray[i] === "Wisconsin" || optionsArray[i] === "Wyoming") {
+                                                    optionsArray.splice(i, 1)
+                                                }
+                                            }
+
+                                            // Slicer variables
+                                            var attacherSlicerId
+                                            var companySlicerId
+                                            var typeSlicerId
+                                            var locationSlicerId
+                                            var slicerArray = fids.split(".")
+                                            
+                                            // Attacher dropdown
+                                            if (type === "tmc" & fid === 171) {
+                                                console.log("Condition met for 171")
+                                                
+                                                // Slicing options
+                                                attacherSlicerId = slicerArray[13] // assumes 14th field id is the id for attacher count in URL
+                                                if (fids.includes(attacherSlicerId)) {
+                                                    let sliceIncrement = parseInt(`${response.data[0][attacherSlicerId].value}`) // gets value of attacher analytic
+                                                    sliceCount = sliceCount + sliceIncrement
+                                                }
+
+                                                attacherOptions = optionsArray.slice(0, sliceCount)
+                                                
+                                                // Loop to append options
+                                                for (var i = 0; i < attacherOptions.length; i++) {
+                                                    if (attacherOptions[i] === attacher) {
+                                                        const input = `<option value="${attacherOptions[i]}" for="${fid}" selected>${attacherOptions[i]}</option>`
+                                                        $(attacherOptionsTag).append(input)
+                                                    } else {
+                                                        const input = `<option value="${attacherOptions[i]}" for="${fid}">${attacherOptions[i]}</option>`
+                                                        $(attacherOptionsTag).append(input)
+                                                    }
+                                                }
+                                                console.log("Added attacher options")
+                                                attacherCount = sliceCount
+                                            }
+
+                                            // Operating Company dropdown
+                                            if (type === "tmc" & fid === 172) {
+                                                console.log("Condition met for 172")
+
+                                                // Slicing options
+                                                let sliceIncrement, companySlice
+                                                companySlicerId = slicerArray[14] // assumes 15th field id is the id for operating count in URL
+                                                if (fids.includes(companySlicerId)) {
+                                                    sliceIncrement = parseInt(`${response.data[0][companySlicerId].value}`) // gets value of company analytic
+                                                    companySlice = sliceCount + sliceIncrement
+                                                }
+
+                                                companyOptions = optionsArray.slice(sliceCount, companySlice)
+
+                                                // Loop to append options
+                                                for (var i = 0; i < companyOptions.length; i++) {
+                                                    if (companyOptions[i] === company) {
+                                                        const input = `<option value="${companyOptions[i]}" for="${fid}" selected>${companyOptions[i]}</option>`
+                                                        $(companyOptionsTag).append(input)
+                                                    } else {
+                                                        const input = `<option value="${companyOptions[i]}" for="${fid}">${companyOptions[i]}</option>`
+                                                        $(companyOptionsTag).append(input)
+                                                    }
+                                                }
+                                                console.log("Added company options")
+                                                sliceCount = companySlice
+                                            }
+
+                                            // Attachment Type dropdown
+                                            if (type === "tmc" & fid === 173) {
+                                                console.log("Condition met for 173")
+
+                                                // Slicing options
+                                                let sliceIncrement, typeSlice
+                                                typeSlicerId = slicerArray[15] // assumes 16th field id is the id for attachment type count in URL
+                                                if (fids.includes(typeSlicerId)) {
+                                                    sliceIncrement = parseInt(`${response.data[0][typeSlicerId].value}`) // gets value of type analytic
+                                                    typeSlice = sliceCount + sliceIncrement
+                                                }
+
+                                                typeOptions = optionsArray.slice(sliceCount, typeSlice)
+                                                
+                                                // Loop to append options
+                                                for (var i = 0; i < typeOptions.length; i++) {
+                                                    if (typeOptions[i] === attachmentType) {
+                                                        const input = `<option value="${typeOptions[i]}" for="${fid}" selected>${typeOptions[i]}</option>`
+                                                        $(typeOptionsTag).append(input)
+                                                    } else {
+                                                        const input = `<option value="${typeOptions[i]}" for="${fid}">${typeOptions[i]}</option>`
+                                                        $(typeOptionsTag).append(input)
+                                                    }
+                                                }
+                                                console.log("Added type options")
+                                                sliceCount = typeSlice
+                                            }
+
+                                            // Project Location dropdown
+                                            if (type === "tmc" & fid === 174) {
+                                                console.log("Condition met for 174")
+
+                                                // Slicing options
+                                                let sliceIncrement, locationSlice
+                                                locationSlicerId = slicerArray[16] // assumes 17th field id is the id for project location count in URL
+                                                if (fids.includes(locationSlicerId)) {
+                                                    sliceIncrement = parseInt(`${response.data[0][locationSlicerId].value}`) // gets value of location analytic
+                                                    locationSlice = sliceCount + sliceIncrement
+                                                }
+
+                                                locationOptions = optionsArray.slice(sliceCount, locationSlice)
+
+                                                // Loop to append options
+                                                for (var i = 0; i < locationOptions.length; i++) {
+                                                    if (locationOptions[i] === location) {
+                                                        const input = `<option value="${locationOptions[i]}" for="${fid}" selected>${locationOptions[i]}</option>`
+                                                        $(locationOptionsTag).append(input)
+                                                    } else {
+                                                        const input = `<option value="${locationOptions[i]}" for="${fid}">${locationOptions[i]}</option>`
+                                                        $(locationOptionsTag).append(input)
+                                                    }
+                                                }
+                                                console.log("Added location options")
+                                                
+                                            }
+                                            
+                                            // Attach Bulma calendar
+                                            bulmaCalendar.attach('[type="date"]', {
+                                                color:'dark', 
+                                                dateFormat: 'yyyy-MM-dd', 
+                                                showTodayButton: 'false', 
+                                                showClearButton: 'false', 
+                                                showHeader: 'false'
+                                            })
+                                                                                      
+                                            // Beginning focus
+                                            if (i === 1) {
+                                                focus = "autofocus"
+                                            }
+                                            
+                                            // Order fields that are not dropdowns into columns
+                                            if (fid === 126) {
+                                                // Add input for 126 (Received Date)
+                                                const input = `<label style="color: white;" for="${fid}">${fLabel}</label><input type="${type}" class="form-control" name=${fid} id="${fid}" ${value} ${focus}/><br>`
+                                                $(inputFormColumn2).append(input)
+                                            } else if (fid === 142) {
+                                                // Add input for 142 (Proposal Submitted By)
+                                                const input = `<label style="color: white;" for="${fid}">${fLabel}</label><input type="${type}" class="form-control" name=${fid} id="${fid}" ${value} ${focus}/><br>`
+                                                $(inputFormColumn3).append(input)
+                                            } else if (fid === 138) {
+                                                // Add input for 138 (PDS Project Number)
+                                                const input = `<label style="color: white;" for="${fid}">${fLabel}</label><input type="${type}" class="form-control" name=${fid} id="${fid}" ${value} ${focus}/><br>`
+                                                $(inputForm).append(input)
+                                            } else if (fid === 139) {
+                                                // Add input for 139 (Short PDS #)
+                                                const input = `<label style="color: white;" for="${fid}">${fLabel}</label><input type="${type}" class="form-control" name=${fid} id="${fid}" ${value} ${focus}/><br>`
+                                                $(inputFormColumn2).append(input)
+                                            } else if (fid === 140) {
+                                                // Add input for 140 (Customer Project #)
+                                                const input = `<label style="color: white;" for="${fid}">${fLabel}</label><input type="${type}" class="form-control" name=${fid} id="${fid}" ${value} ${focus}/><br>`
+                                                $(inputFormColumn3).append(input)
+                                            } else if (fid === 143) {
+                                                // Add input for 143 (Proposal Contact Name)
+                                                const input = `<label style="color: white;" for="${fid}">${fLabel}</label><input type="${type}" class="form-control" name=${fid} id="${fid}" ${value} ${focus}/><br>`
+                                                $(inputForm).append(input)
+                                            } else if (fid === 144) {
+                                                // Add input for 144 (Proposal Contact Phone)
+                                                const input = `<label style="color: white;" for="${fid}">${fLabel}</label><input type="${type}" class="form-control" name=${fid} id="${fid}" ${value} ${focus}/><br>`
+                                                $(inputFormColumn2).append(input)
+                                            } else if (fid === 145) {
+                                                // Add input for 145 (Proposal Contact Email)
+                                                const input = `<label style="color: white;" for="${fid}">${fLabel}</label><input type="${type}" class="form-control" name=${fid} id="${fid}" ${value} ${focus}/><br>`
+                                                $(inputFormColumn3).append(input)
+                                            }                                              
+                                        })
+                                        .catch((error) =>
+                                            console.error(error)
+                                        )
+                                }
+
+                                // Save Attacher value
+                                const selectAttacherElement = document.getElementById("attacherOptionsTag")
+                                if (attacher !== null) {
+                                    attacherDropdownValue = attacher
+                                }
+                                selectAttacherElement.addEventListener("change", (e) => {
+                                    var value = e.target.value
+                                    attacherDropdownValue = value
+                                    console.log("Attacher Option:", attacherDropdownValue)
+                                })
+
+                                // Save Project Location value
+                                const selectLocationElement = document.getElementById("locationOptionsTag")
+                                if (location !== null) {
+                                    locationDropdownValue = location
+                                }
+                                selectLocationElement.addEventListener("change", (e) => {
+                                    var value = e.target.value
+                                    locationDropdownValue = value
+                                    console.log("Location Option:", value)
+                                })
+
+                                // Save Attachment Type value
+                                const selectTypeElement = document.getElementById("typeOptionsTag")
+                                if (attachmentType !== null) {
+                                    typeDropdownValue = attachmentType
+                                }
+                                selectTypeElement.addEventListener("change", (e) => {
+                                    var value = e.target.value
+                                    typeDropdownValue = value
+                                    console.log("Attacher Type Option:", value)
+                                })
+
+                                // Save Operating Company value
+                                const selectCompanyElement = document.getElementById("companyOptionsTag")
+                                if (company !== null) {
+                                    companyDropdownValue = company
+                                }
+                                selectCompanyElement.addEventListener("change", (e) => {
+                                    var value = e.target.value
+                                    companyDropdownValue = value
+                                    console.log("Company Option:", value)
+                                })
+                            })
+                        },
+                    })
+                }
+            }
+
+            // Function to get inputs and save to record
+            const run = () => {
+                $("#form").hide()
+                $("#saveLoader").addClass("is-active")
+
+                // Labels for dropdowns
+                var attacherLabel = $("#attacherLabel")
+                var companyLabel = $("#companyLabel")
+                var locationLabel = $("#locationLabel")
+                var typeLabel = $("#typeLabel")
+
+                // URL parameters
+                const urlParams = new URLSearchParams(window.location.search)
+                const dbid = urlParams.get("dbid")
+                let rid = urlParams.get("rid")
+                const fids = urlParams.get("fids")
+                const refID = urlParams.get("refID")
+                const refVal = urlParams.get("refVal")
+                const appToken = urlParams.get("apptoken")
+                const realm = window.location.hostname.substring(
+                    0,
+                    window.location.hostname.indexOf(".")
+                )
+                const fields = fids.split(".")
+                const headers = new Map()
+
+                // Begin Temp Auth
+                getTempAuth(realm, dbid, appToken).then((header) => {
+                    headers.set(dbid, header)
+                    save()
+                })
+
+                const save = () => {
+                    // Create the upsert payload based on the values within the input elements
+                    const payload = {
+                        to: dbid,
+                        mergeFieldId: 3,
+                        data: [{}],
+                    }
+                    if (rid) {
+                        payload.data[0][3] = { value: rid }
+                    }
+                    if (refID && refVal) {
+                        payload.data[0][refID] = { value: refVal }
+                    }
+
+                    // Checking changed dropdown values from what was imported
+                    console.log("This is the attacher dropdown value:", attacherDropdownValue)
+                    console.log("This is the type dropdown value:", typeDropdownValue)
+                    console.log("This is the location dropdown value:", locationDropdownValue)
+                    console.log("This is the company dropdown value:", companyDropdownValue)
+
+                    // Loop counter to check for completion
+                    var count = 0
+
+                    // Loop through fields to add to payload
+                    for (i = 0; i < fields.length; i++) {
+                        count++
+                        console.log("Count: ", count)
+                        const input = $(`#${fields[i]}`)
+                        const type = input.attr("type")
+
+                        let val
+                        let add = true
+                        
+                        // Check types
+                        if (type === "checkbox") {
+                            val = input.prop("checked")
+                        } else if (type === "number" && i !== 12) { // check for all numbers except analytics - ADD MORE WHEN OTHERS ARE ADDED
+                            if (input.val()) {
+                                val = Number(input.val())
+                            } else {
+                                add = false
+                            }
+                        } else if (type === "datetime-local" && input.val() && input.val().length === 16) { 
+                            val = `${input.val()}:00`
+                        } else if (type === "time" && input.val() && input.val().length === 5) {
+                            val = `${input.val()}:00`
+                        } else if (type === undefined && i === 9) { // begin checking dropdowns for selection
+                            console.log("Undefined condition met for: ", fields[9])
+                            if (attacherDropdownValue === "") {
+                                $(attacherLabel).replaceWith(`<label style="color: red;" for="attacherOptionsTag" id="attacherLabel" class="has-tooltip-multiline has-tooltip-warning has-tooltip-arrow has-tooltip-bottom" data-tooltip="If a new attacher needs to be added, contact your administrator.">Attacher **</label>`)
+                                count--
+                                break
+                            } else {
+                                $(attacherLabel).replaceWith(`<label style="color: white;" for="attacherOptionsTag" id="attacherLabel" class="has-tooltip-multiline has-tooltip-warning has-tooltip-arrow has-tooltip-bottom" data-tooltip="If a new attacher needs to be added, contact your administrator.">Attacher</label>`)
+                                val = attacherDropdownValue
+                            } 
+                        } else if (type === undefined && i === 12) {
+                            console.log("Undefined condition met for: ", fields[12])
+                            if (locationDropdownValue === "") {
+                                $(locationLabel).replaceWith(`<label style="color: red;" for="locationOptionsTag" id="locationLabel" class="has-tooltip-multiline has-tooltip-warning has-tooltip-arrow has-tooltip-bottom" data-tooltip="If a new project location needs to be added, contact your administrator.">Project Location **</label>`)
+                                count--
+                                break
+                            } else {
+                                $(locationLabel).replaceWith(`<label style="color: white;" for="locationOptionsTag" id="locationLabel" class="has-tooltip-multiline has-tooltip-warning has-tooltip-arrow has-tooltip-bottom" data-tooltip="If a new project location needs to be added, contact your administrator.">Project Location</label>`)
+                                val = locationDropdownValue
+                            }
+                        } else if (type === undefined && i === 11) {
+                            console.log("Undefined condition met for: ", fields[11])
+                            if (typeDropdownValue === "") {
+                                $(typeLabel).replaceWith(`<label style="color: red;" for="typeOptionsTag" id="typeLabel" class="has-tooltip-multiline has-tooltip-warning has-tooltip-arrow has-tooltip-bottom" data-tooltip="If a new attachment type needs to be added, contact your administrator.">Attachment Type **</label>`)
+                                count--
+                                break
+                            } else {
+                                $(typeLabel).replaceWith(`<label style="color: white;" for="typeOptionsTag" id="typeLabel" class="has-tooltip-multiline has-tooltip-warning has-tooltip-arrow has-tooltip-bottom" data-tooltip="If a new attachment type needs to be added, contact your administrator.">Attachment Type</label>`)
+                                val = typeDropdownValue
+                            }
+                        } else if (type === undefined && i === 10) {
+                            console.log("Undefined condition met for: ", fields[10])
+                            if (companyDropdownValue === "") {
+                                $(companyLabel).replaceWith(`<label style="color: red;" for="companyOptionsTag" id="companyLabel" class="has-tooltip-multiline has-tooltip-warning has-tooltip-arrow has-tooltip-bottom" data-tooltip="If a new operating company needs to be added, contact your administrator.">Operating Company **</label>`)
+                                break
+                            } else {
+                                $(companyLabel).replaceWith(`<label style="color: white;" for="companyOptionsTag" id="companyLabel" class="has-tooltip-multiline has-tooltip-warning has-tooltip-arrow has-tooltip-bottom" data-tooltip="If a new operating company needs to be added, contact your administrator.">Operating Company</label>`)
+                                val = companyDropdownValue
+                            }
+                        } else if (i === 13 || i === 14 || i === 15 || i === 16) { // attacher analytic field - DO NOT CHANGE!!
+                            val = Number(input.val())
+                        } else if(i === 1) {
+                            val = input.val()
+                        } else if (i === 0) {
+                            val = projectName
+                        } else {
+                            val = input.val()
+                        }
+
+                        if (add) {
+                            payload.data[0][fields[i]] = { value: val }
+                        }
+                    }
+                    if (count === fields.length) { // increment as other analytic fields are added - total after done will be 17
+                        jsonImport(payload, "Add Record")
+                    } else {
+                        // Show dropdown alert
+                        Bulma().alert({
+                            type: 'danger',
+                            title: 'Oops...Check the Dropdowns',
+                            body: 'Please select values for the dropdown marked in red.',
+                            confirm: 'Ok!'
+                        })
+
+                        // Show form again
+                        $("#saveLoader").removeClass("is-active")
+                        $("#form").show()
+                    }
+                }
+
+                // Import payload to Quickbase to add/edit record
+                const jsonImport = (payload, udata) => {
+                    return new Promise((resolve) => {
+                        console.log(JSON.stringify(payload))
+                        if (payload.data.length > 0) {
+                            $.ajax({
+                                url: "https://api.quickbase.com/v1/records",
+                                method: "POST",
+                                headers: headers.get(payload.to),
+                                dataType: "json",
+                                contentType: "application/json; charset=utf-8",
+                                data: JSON.stringify(payload),
+                                retryLimit: 10,
+                                success: (response) => {
+                                    if (!rid) {
+                                        rid =
+                                            response.metadata
+                                                .createdRecordIds[0]
+                                    }
+                                    if (refID && refVal) {
+                                        window.location.reload(true)
+                                    } else {
+                                        window.location.href = `https://${realm}.quickbase.com/db/${dbid}?a=dr&rid=${rid}`
+                                    }
+                                },
+                                error: (error) => {
+                                    console.log(error.Message)
+                                    alert(
+                                        `An error occurred. Click OK to be redirected back to the previous page.`
+                                    )
+                                    errRdr()
+                                },
+                            })
+                        }
+                    })
+                }
+            }
+
+            // Authorize token
+            getTempAuth = (realm, dbid, appToken) => {
+                return new Promise((resolve) => {
+                    $.ajax({
+                        url: `https://api.quickbase.com/v1/auth/temporary/${dbid}`,
+                        method: "GET",
+                        headers: {
+                            "QB-Realm-Hostname": realm,
+                            userAgent: "QB APIGateway",
+                            "QB-App-Token": appToken,
+                        },
+                        xhrFields: {
+                            withCredentials: true,
+                        },
+                        success: (data) => {
+                            resolve({
+                                "QB-Realm-Hostname": realm,
+                                userAgent: "QB APIGateway",
+                                Authorization: `QB-TEMP-TOKEN ${data.temporaryAuthorization}`,
+                            })
+                        },
+                    })
+                })
+            }
+
+            const errRdr = () => {
+                // Redirects to the previous page, if this page was the previous page as well, then redirect to the app home page
+                if (
+                    document.referrer &&
+                    document.referrer !== window.location.href
+                ) {
+                    window.location.href = document.referrer
+                } else {
+                    window.location.href =
+                        window.location.origin + window.location.pathname
+                }
+            }
+        </script>
+        <title>Edit Project</title>
+    </head>
+    <body onload="buildForm()">
+
+        <!-- Main section -->
+        <section style="padding: 20px" class="hero">
+
+            <!-- Outside div -->
+            <div class="container outside-div" id="form">
+
+                <!-- Inner div -->
+                <div class="hero-body inside-div">
+
+                    <!-- Title -->
+                    <h1 class="title" id="test">
+                        Edit Record
+                    </h1>
+
+                    <!-- Dropdown instructions -->
+                    <h2 class="subtitle is-6" id="instructions">
+                        ** Ensure that all dropdowns are selected. Form will not update without each one having a selection. **<br><br>** If no changes are made, the selected values will be sent. **
+                    </h2>
+
+                    <!-- Begin columns -->
+                    <div class="columns">
+
+                        <!-- Column 1 -->
+                        <div class="column">
+                            <form>
+                                <div class="form-group">
+                                    <div id="inputForm">
+                                        <label style="color: white;" for="attacherOptionsTag" id="attacherLabel" class="has-tooltip-multiline has-tooltip-warning has-tooltip-arrow has-tooltip-bottom" data-tooltip="If a new attacher needs to be added, contact your administrator.">Attacher</label>
+                                        <select id="attacherOptionsTag" class="form-control" required><option value=""></option></select><br>
+                                        <label style="color: white;" for="locationOptionsTag" id="locationLabel" class="has-tooltip-multiline has-tooltip-warning has-tooltip-arrow has-tooltip-bottom" data-tooltip="If a new project location needs to be added, contact your administrator.">Project Location</label>
+                                        <select id="locationOptionsTag" class="form-control" required><option value=""></option></select><br>
+                                    </div> 
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Column 2 -->
+                        <div class="column">
+                            <form>
+                                <div class="form-group">
+                                    <div id="inputFormColumn2">
+                                        <label style="color: white;" for="companyOptionsTag" id="companyLabel" class="has-tooltip-multiline has-tooltip-warning has-tooltip-arrow has-tooltip-bottom" data-tooltip="If a new operating company needs to be added, contact your administrator.">Operating Company</label>
+                                        <select id="companyOptionsTag" class="form-control" required><option value=""></option></select><br>
+                                    </div> 
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Column 3 -->
+                        <div class="column">
+                            <form>
+                                <div class="form-group">
+                                    <div id="inputFormColumn3">
+                                        <label style="color: white;" for="typeOptionsTag" id="typeLabel" class="has-tooltip-multiline has-tooltip-warning has-tooltip-arrow has-tooltip-bottom" data-tooltip="If a new attachment type needs to be added, contact your administrator.">Attachment Type</label>
+                                        <select id="typeOptionsTag" class="form-control" required><option value=""></option></select><br>
+                                    </div> 
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Buttons -->
+                    <div class="columns is-centered">
+                        <div class="column is-half">
+                            <div class="buttons">
+                                <button class="button is-success-dark" onclick="run()" role="button">Submit</button>
+                                <button class="button is-danger-dark" onclick="window.location.href = document.referrer;" role="button">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Saving loading container -->
+            <div class="pageloader has-background-success-dark" id="saveLoader"><span class="title">Processing...</span></div>
+
+            <!-- Loading container -->
+            <div class="pageloader is-dark" id="pageLoader"><span class="title">Gathering data and loading...</span></div>
+
+            <!-- Initial page container -->
+            <div class="pageloader is-info" id="initialPage"></div>
+        </section>
+    </body>
+</html>
