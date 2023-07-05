@@ -1,0 +1,63 @@
+** Table Notes **
+
+var text startDiv = "<div style=\"font-weight:bold;\">";
+var text endDiv = "</div><br>";
+
+If(Trim(ToText([Notes]))<>"",
+    Trim(SearchAndReplace(
+        SearchAndReplace(
+            SearchAndReplace(ToText([Notes]), " ; ", ""),
+            "{", $startDiv),
+        "}", $endDiv)))
+
+
+
+** Note Summary **
+** This is a summary of the Notes field from the Notes table **
+
+// Variables for timestamp
+var text timestamp = ToFormattedText([Date Created],
+    "YYYYMMDD");
+var number hr = ToNumber(Right(NotRight($timestamp, ":"),2));
+var number hrs = If(Contains($timestamp, " PM"), If($hr=12, 12, $hr + 12), $hr);
+
+// Check for note type to determine border color and shading
+Case([Note Type],
+"Mapping","<div id=\"'a'\" style=\"margin-top: 5px; margin-bottom:10px; padding: 10px 10px 0 10px; border-radius: 15px; border: 2px solid #f21d1d; background-color: #fddddd; \">",
+"Master poles","<div id=\"'b'\" style=\"margin-top: 5px; margin-bottom:10px; padding: 10px 10px 0 10px; border-radius: 15px; border: 2px solid #0022ff; background-color: #d9deff; \">",
+"Field Collection","<div id=\"'c'\" style=\"margin-top: 5px; margin-bottom:10px; padding: 10px 10px 0 10px; border-radius: 15px; border: 2px solid #e61ee6; background-color: #fbddfb; \">",
+"Analysis/Design - AEP Maintenance","<div id=\"'d'\" style=\"margin-top: 5px; margin-bottom:10px; padding: 10px 10px 0 10px; border-radius: 15px; border: 2px solid #8351e8; background-color: #ece5fc; \">",
+"Analysis/Design - Analysis","<div id=\"'e'\" style=\"margin-top: 5px; margin-bottom:10px; padding: 10px 10px 0 10px; border-radius: 15px; border: 2px solid #8351e8; background-color: #ece5fc; \">",
+"Review - Reviewers Comment","<div id=\"'f'\" style=\"margin-top: 5px; margin-bottom:10px; padding: 10px 10px 0 10px; border-radius: 15px; border: 2px solid #5fe3e3; background-color: #e7fbfb; \">",
+"Option Approval - Customer Approval","<div id=\"'g'\" style=\"margin-top: 5px; margin-bottom:10px; padding: 10px 10px 0 10px; border-radius: 15px; border: 2px solid #41c498; background-color: #e2f6f0; \">",
+"Option Approval - Remedy Revision","<div id=\"'h'\" style=\"margin-top: 5px; margin-bottom:10px; padding: 10px 10px 0 10px; border-radius: 15px; border: 2px solid #41c498; background-color: #e2f6f0; \">",
+"Billing","<div id=\"'i'\" style=\"margin-top: 5px; margin-bottom:10px; padding: 10px 10px 0 10px; border-radius: 15px; border: 2px solid #7200eb; background-color: #ead6ff; \">",
+"Make Ready - Eng. & Make Ready","<div id=\"'j'\" style=\"margin-top: 5px; margin-bottom:10px; padding: 10px 10px 0 10px; border-radius: 15px; border: 2px solid #a3d442; background-color: #f1f9e3; \">",
+"Make Ready - Small Asset Improvement","<div id=\"'k'\" style=\"margin-top: 5px; margin-bottom:10px; padding: 10px 10px 0 10px; border-radius: 15px; border: 2px solid #a3d442; background-color: #f1f9e3; \">",
+"Make Ready - Regarding Locate Forms","<div id=\"'l'\" style=\"margin-top: 5px; margin-bottom:10px; padding: 10px 10px 0 10px; border-radius: 15px; border: 2px solid #a3d442; background-color: #f1f9e3; \">",
+"Invoicing & Construction - Invoice & Payment","<div id=\"'m'\" style=\"margin-top: 5px; margin-bottom:10px; padding: 10px 10px 0 10px; border-radius: 15px; border: 2px solid #ccd5f0; background-color: #f7f9fd; \">",
+"Invoicing & Construction - Refund","<div id=\"'n'\" style=\"margin-top: 5px; margin-bottom:10px; padding: 10px 10px 0 10px; border-radius: 15px; border: 2px solid #ccd5f0; background-color: #f7f9fd; \">",
+"Invoicing & Construction - Minor Construction","<div id=\"'o'\" style=\"margin-top: 5px; margin-bottom:10px; padding: 10px 10px 0 10px; border-radius: 15px; border: 2px solid #ccd5f0; background-color: #f7f9fd; \">",
+"Invoicing & Construction - Construction","<div id=\"'p'\" style=\"margin-top: 5px; margin-bottom:10px; padding: 10px 10px 0 10px; border-radius: 15px; border: 2px solid #ccd5f0; background-color: #f7f9fd; \">",
+"Post - Post 1","<div id=\"'q'\" style=\"margin-top: 5px; margin-bottom:10px; padding: 10px 10px 0 10px; border-radius: 15px; border: 2px solid #c9c92b; background-color: #f8f8de; \">",
+"Post - Post 2","<div id=\"'r'\" style=\"margin-top: 5px; margin-bottom:10px; padding: 10px 10px 0 10px; border-radius: 15px; border: 2px solid #c9c92b; background-color: #f8f8de; \">",
+"Closure - Operating Company Comment","<div id=\"'s'\" style=\"margin-top: 5px; margin-bottom:10px; padding: 10px 10px 0 10px; border-radius: 15px; border: 2px solid #e8753c; background-color: #fceae2; \">",
+"Closure - Customer Comment","<div id=\"'t'\" style=\"margin-top: 5px; margin-bottom:10px; padding: 10px 10px 0 10px; border-radius: 15px; border: 2px solid #e8753c; background-color: #fceae2; \">",
+"Closure","<div id=\"'u'\" style=\"margin-top: 5px; margin-bottom:10px; padding: 10px 10px 0 10px; border-radius: 15px; border: 2px solid #e8753c; background-color: #fceae2; \">",
+"<div id=\"'v'\" style=\"margin-top: 5px; margin-bottom:10px; padding: 10px 10px 0 10px; border-radius: 15px; border: 2px solid #000000; background-color: #d9d9d9; \">"
+)
+&
+
+// Begin summary string
+"{<a style=\"margin-top: 5px; & \"></a>"
+& " "
+
+& [Note Type] & " Note - "
+
+& Left($timestamp, 11) & Right("00" & ToText($hrs), 2) & Mid($timestamp, Find($timestamp, ":"), 3)
+& ", "
+& UserToName([Record Owner])
+& "} "
+
+//[Note Summary Sort]
+& "<p style=\"margin-top: 0px; \">" & SearchAndReplace(SearchAndReplace(SearchAndReplace(Trim([Note]), "{", "("), "}", ")"), "\n", "<BR>") & "</p></div>"
